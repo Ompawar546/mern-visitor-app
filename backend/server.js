@@ -15,19 +15,33 @@ mongoose.connect(DB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log("MongoDB connected"))
     .catch(err => console.error(err));
 
-const dataSchema = new mongoose.Schema({ input: String });
+const dataSchema = new mongoose.Schema({ 
+        name: String, 
+        joke: String 
+    });    
 const Data = mongoose.model("Data", dataSchema);
 
 app.post("/api/data", async (req, res) => {
-    const { input } = req.body;
-    const newData = new Data({ input });
+    const { name } = req.body;
+
+    // Fetch a joke from an external API
+    const jokeResponse = await fetch("https://official-joke-api.appspot.com/random_joke");
+    const jokeData = await jokeResponse.json();
+    const joke = `${jokeData.setup} - ${jokeData.punchline}`;
+
+    // Save name and joke to the database
+    const newData = new Data({ name, joke });
     await newData.save();
-    res.status(201).send("Data stored");
+    res.status(201).json({ message: "Data stored", name, joke });
 });
 
-app.get("/api/data", async (req, res) => {
-    const data = await Data.find();
-    res.status(200).json(data);
+app.get("/api/latest", async (req, res) => {
+    const latestEntry = await Data.findOne().sort({ _id: -1 });
+    if (!latestEntry) return res.status(404).json({ error: "No data found" });
+    res.status(200).json(latestEntry);
 });
+
+
+
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
